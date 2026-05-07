@@ -51,6 +51,7 @@ modules:
     build-options:
       cflags: -Wno-error
     config-opts:
+      - --libdir=/app/lib
       - --with-gtk=3
       - --disable-dumper
       - --disable-static
@@ -151,6 +152,9 @@ modules:
 
   - name: libXpresent
     buildsystem: autotools
+    config-opts:
+      - --libdir=/app/lib
+      - --disable-static
     sources:
       - type: git
         url: https://gitlab.freedesktop.org/xorg/lib/libxpresent.git
