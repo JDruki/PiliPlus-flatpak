@@ -30,15 +30,23 @@ flatpak run com.example.piliplus
 ## GitHub Release
 
 Run the `Build Flatpak Release` workflow manually and pass the upstream PiliPlus
-release tag, for example `2.0.7`.
+release tag, for example `2.0.7`. You can also pass `latest`.
+
+The workflow also runs every 6 hours. Scheduled runs resolve the latest upstream
+PiliPlus GitHub Release and only build when this packaging repository does not
+already have the matching release tag.
 
 The workflow:
 
 1. Reads the upstream GitHub Release metadata.
 2. Finds the `PiliPlus_linux_*_amd64.tar.gz` asset.
-3. Generates the Flatpak manifest with the asset URL and SHA256.
-4. Builds `PiliPlus-<version>-x86_64.flatpak`.
-5. Publishes it to this repository under release tag `piliplus-<upstream-tag>`.
+3. Checks whether `piliplus-<upstream-tag>` already exists in this repository.
+4. Generates the Flatpak manifest with the asset URL and SHA256.
+5. Builds `PiliPlus-<version>-x86_64.flatpak`.
+6. Publishes it to this repository under release tag `piliplus-<upstream-tag>`.
+
+Manual workflow runs enable `force` by default, so they can rebuild an existing
+Flatpak release. Scheduled runs never force rebuilds.
 
 ## Flatpak Permissions
 

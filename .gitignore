@@ -6,3 +6,5 @@ build/generated/
 dist/
 *.flatpak
 /com.example.piliplus.yml
+__pycache__/
+*.pyc

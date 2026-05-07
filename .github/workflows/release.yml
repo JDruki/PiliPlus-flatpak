@@ -4,15 +4,65 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Upstream PiliPlus release tag
+        description: Upstream PiliPlus release tag, or latest
         required: true
-        default: 2.0.7
+        default: latest
+      force:
+        description: Rebuild even if this Flatpak release already exists
+        required: true
+        type: boolean
+        default: true
+  schedule:
+    - cron: '23 */6 * * *'
 
 permissions:
   contents: write
 
+concurrency:
+  group: piliplus-flatpak-release
+  cancel-in-progress: false
+
 jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      release_tag: ${{ steps.resolve.outputs.release_tag }}
+      asset_name: ${{ steps.resolve.outputs.asset_name }}
+      should_build: ${{ steps.resolve.outputs.should_build }}
+      reason: ${{ steps.resolve.outputs.reason }}
+
+    steps:
+      - name: Check out packaging repo
+        uses: actions/checkout@v4
+
+      - name: Resolve upstream release
+        id: resolve
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REQUESTED_TAG: ${{ github.event.inputs.tag || 'latest' }}
+          FORCE_BUILD: ${{ github.event.inputs.force || 'false' }}
+        run: |
+          python3 scripts/check-upstream-release.py \
+            --tag "$REQUESTED_TAG" \
+            --packaging-repo "${{ github.repository }}" \
+            --force "$FORCE_BUILD"
+
+      - name: Write summary
+        run: |
+          {
+            echo "### PiliPlus upstream check"
+            echo ""
+            echo "- Upstream tag: \`${{ steps.resolve.outputs.tag }}\`"
+            echo "- Asset: \`${{ steps.resolve.outputs.asset_name }}\`"
+            echo "- Packaging release: \`${{ steps.resolve.outputs.release_tag }}\`"
+            echo "- Should build: \`${{ steps.resolve.outputs.should_build }}\`"
+            echo "- Reason: ${{ steps.resolve.outputs.reason }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   build:
+    needs: resolve
+    if: needs.resolve.outputs.should_build == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -27,7 +77,9 @@ jobs:
           flatpak install --user -y flathub org.gnome.Platform//49 org.gnome.Sdk//49
 
       - name: Build bundle
-        run: ./scripts/build-flatpak.sh "${{ inputs.tag }}"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: ./scripts/build-flatpak.sh "${{ needs.resolve.outputs.tag }}"
 
       - name: Read release metadata
         id: meta
@@ -49,14 +101,16 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: piliplus-${{ inputs.tag }}
-          name: PiliPlus ${{ inputs.tag }} Flatpak
+          tag_name: ${{ needs.resolve.outputs.release_tag }}
+          name: PiliPlus ${{ needs.resolve.outputs.tag }} Flatpak
+          target_commitish: ${{ github.sha }}
+          overwrite_files: true
           files: |
             dist/${{ steps.meta.outputs.bundle }}
             dist/${{ steps.meta.outputs.bundle }}.sha256
           body: |
-            Flatpak bundle built from upstream PiliPlus release `${{ inputs.tag }}`.
+            Flatpak bundle built from upstream PiliPlus release `${{ needs.resolve.outputs.tag }}`.
 
-            Upstream release: https://github.com/bggRGjQaUbCoE/PiliPlus/releases/tag/${{ inputs.tag }}
+            Upstream release: https://github.com/bggRGjQaUbCoE/PiliPlus/releases/tag/${{ needs.resolve.outputs.tag }}
             Upstream Linux asset: `${{ steps.meta.outputs.asset }}`
             Upstream asset SHA256: `${{ steps.meta.outputs.sha256 }}`
