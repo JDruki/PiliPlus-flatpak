@@ -234,9 +234,11 @@ modules:
     buildsystem: simple
     build-commands:
       - install -d /app/bin /app/PiliPlus /app/share/applications /app/share/metainfo /app/share/icons/hicolor/512x512/apps
+      - cc -shared -fPIC -O2 appindicator-flatpak-shim.c -o libpiliplus-appindicator-shim.so -ldl
       - install -Dm755 piliplus /app/PiliPlus/piliplus
       - cp -a data lib /app/PiliPlus/
       - install -Dm755 piliplus-wrapper /app/bin/piliplus
+      - install -Dm755 libpiliplus-appindicator-shim.so /app/lib/piliplus/libpiliplus-appindicator-shim.so
       - install -Dm644 com.example.piliplus.desktop /app/share/applications/com.example.piliplus.desktop
       - install -Dm644 com.example.piliplus.metainfo.xml /app/share/metainfo/com.example.piliplus.metainfo.xml
       - install -Dm644 logo.png /app/share/icons/hicolor/512x512/apps/com.example.piliplus.png
@@ -246,6 +248,8 @@ modules:
         sha256: @PILIPLUS_TARBALL_SHA256@
       - type: file
         path: flatpak/piliplus-wrapper
+      - type: file
+        path: flatpak/appindicator-flatpak-shim.c
       - type: file
         path: flatpak/com.example.piliplus.desktop
       - type: file
