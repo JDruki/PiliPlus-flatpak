@@ -1,0 +1,5 @@
+#!/bin/sh
+export LD_LIBRARY_PATH="/app/PiliPlus/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export XCURSOR_PATH="/run/host/user-share/icons:/run/host/share/icons${XCURSOR_PATH:+:$XCURSOR_PATH}"
+
+exec /app/PiliPlus/piliplus "$@"

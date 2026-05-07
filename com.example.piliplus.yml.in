@@ -1,0 +1,243 @@
+app-id: com.example.piliplus
+runtime: org.gnome.Platform
+runtime-version: '49'
+sdk: org.gnome.Sdk
+command: piliplus
+
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=x11
+  - --socket=wayland
+  - --socket=pulseaudio
+  - --device=dri
+  - --filesystem=xdg-download:create
+  - --filesystem=xdg-pictures:create
+  - --filesystem=xdg-videos:create
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.freedesktop.portal.Desktop
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --own-name=org.kde.*
+  - --own-name=com.canonical.AppMenu.Registrar
+  - --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
+
+cleanup:
+  - /include
+  - /lib/debug
+  - /lib/pkgconfig
+  - /share/doc
+  - /share/gtk-doc
+  - /share/man
+  - '*.a'
+  - '*.la'
+
+modules:
+  - name: intltool
+    cleanup:
+      - '*'
+    sources:
+      - type: archive
+        url: https://launchpad.net/intltool/trunk/0.51.0/+download/intltool-0.51.0.tar.gz
+        mirror-urls:
+          - https://sources.suse.com/SUSE:SLE-15-SP7:Update:BCI/000product/ca527df4d03bf96a67854a8ed2f0c64b/INCLUDED/SUSE:SLE-15-SP6:GA::intltool::45f77273c3f2ef792fa697b444183beb/intltool-0.51.0.tar.gz
+          - https://mirror-hk.koddos.net/lfs/lfs-packages/12.0/intltool-0.51.0.tar.gz
+          - https://gstreamer.freedesktop.org/src/mirror/intltool-0.51.0.tar.gz
+        sha256: 67c74d94196b153b774ab9f89b2fa6c6ba79352407037c8c14d5aeb334e959cd
+      - type: patch
+        path: flatpak/patches/intltool-perl5.26-regex-fixes.patch
+
+  - name: libdbusmenu
+    buildsystem: autotools
+    build-options:
+      cflags: -Wno-error
+    config-opts:
+      - --with-gtk=3
+      - --disable-dumper
+      - --disable-static
+      - --disable-tests
+      - --disable-gtk-doc
+      - --enable-introspection=no
+      - --disable-vala
+    cleanup:
+      - /libexec
+    sources:
+      - type: archive
+        url: https://launchpad.net/libdbusmenu/16.04/16.04.0/+download/libdbusmenu-16.04.0.tar.gz
+        mirror-urls:
+          - https://sources.suse.com/SUSE:SLFO:Main:Build/libdbusmenu/a5b3e4717f09f90f9cd5568a5f933e8d/libdbusmenu-16.04.0.tar.gz
+          - https://mirror.math.princeton.edu/pub/frugalware/frugalware-2.1/source/xlib/libdbusmenu/libdbusmenu-16.04.0.tar.gz
+          - https://ftp.fr.openbsd.org/pub/OpenBSD/distfiles/libdbusmenu-16.04.0.tar.gz
+        sha256: b9cc4a2acd74509435892823607d966d424bd9ad5d0b00938f27240a1bfa878a
+      - type: patch
+        path: flatpak/patches/libdbusmenu-fix-valgrind-conditional.patch
+
+  - name: ayatana-ido
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DENABLE_INTROSPECTION=OFF
+    sources:
+      - type: git
+        url: https://github.com/AyatanaIndicators/ayatana-ido.git
+        tag: 0.10.4
+        commit: f968079b09e2310fefc3fc307359025f1c74b3eb
+      - type: patch
+        path: flatpak/patches/ayatana-ido-make-introspection-configurable.patch
+
+  - name: libayatana-indicator
+    buildsystem: cmake-ninja
+    cleanup:
+      - /libexec
+      - /share
+    sources:
+      - type: git
+        url: https://github.com/AyatanaIndicators/libayatana-indicator.git
+        tag: 0.9.4
+        commit: 611bb384b73fa6311777ba4c41381a06f5b99dad
+
+  - name: libayatana-appindicator
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DENABLE_BINDINGS_MONO=NO
+      - -DENABLE_BINDINGS_VALA=NO
+      - -DENABLE_GTKDOC=NO
+    sources:
+      - type: git
+        url: https://github.com/AyatanaIndicators/libayatana-appindicator.git
+        tag: 0.5.94
+        commit: 31e8bb083b307e1cc96af4874a94707727bd1e79
+
+  - name: libass
+    buildsystem: meson
+    config-opts:
+      - -Ddefault_library=shared
+      - -Dtest=disabled
+      - -Dcompare=disabled
+      - -Dprofile=disabled
+      - -Dfuzz=disabled
+      - -Dcheckasm=disabled
+      - -Dlibunibreak=disabled
+    sources:
+      - type: archive
+        url: https://github.com/libass/libass/releases/download/0.17.4/libass-0.17.4.tar.xz
+        sha256: 78f1179b838d025e9c26e8fef33f8092f65611444ffa1bfc0cfac6a33511a05a
+
+  - name: libplacebo
+    buildsystem: meson
+    config-opts:
+      - -Ddefault_library=shared
+      - -Ddemos=false
+      - -Dtests=false
+      - -Dbench=false
+      - -Dfuzz=false
+      - -Dvulkan=enabled
+      - -Dshaderc=enabled
+      - -Dglslang=disabled
+      - -Dopengl=enabled
+      - -Dlcms=enabled
+      - -Ddovi=disabled
+      - -Dlibdovi=disabled
+      - -Dxxhash=disabled
+    sources:
+      - type: git
+        url: https://github.com/haasn/libplacebo.git
+        tag: v7.360.1
+        commit: cee9b076f2c63104ccfd497fa79c39a867293ec4
+
+  - name: libXpresent
+    buildsystem: autotools
+    sources:
+      - type: git
+        url: https://gitlab.freedesktop.org/xorg/lib/libxpresent.git
+        tag: libXpresent-1.0.2
+        commit: 4d92149372461bf575e8a09b1064a2884c38c3aa
+
+  - name: mpv
+    buildsystem: meson
+    config-opts:
+      - -Dcplayer=false
+      - -Dlibmpv=true
+      - -Dbuild-date=false
+      - -Dhtml-build=disabled
+      - -Dmanpage-build=disabled
+      - -Dpdf-build=disabled
+      - -Dtests=false
+      - -Dfuzzers=false
+      - -Dcdda=disabled
+      - -Ddvbin=disabled
+      - -Ddvdnav=disabled
+      - -Djavascript=disabled
+      - -Dlibbluray=disabled
+      - -Dlua=disabled
+      - -Drubberband=disabled
+      - -Duchardet=disabled
+      - -Dvapoursynth=disabled
+      - -Dzimg=disabled
+      - -Dcaca=disabled
+      - -Dsixel=disabled
+      - -Dspirv-cross=disabled
+      - -Dshaderc=disabled
+      - -Djack=disabled
+      - -Dopenal=disabled
+      - -Dsdl2-audio=disabled
+      - -Dsdl2-video=disabled
+      - -Dsdl2-gamepad=disabled
+      - -Dsndio=disabled
+      - -Dcuda-hwaccel=disabled
+      - -Dcuda-interop=disabled
+      - -Ddrm=disabled
+      - -Dgbm=disabled
+      - -Dgl-x11=disabled
+      - -Degl-drm=disabled
+      - -Degl-x11=disabled
+      - -Dx11=enabled
+      - -Dxv=disabled
+      - -Dvaapi=enabled
+      - -Dvaapi-drm=disabled
+      - -Dvaapi-wayland=enabled
+      - -Dvaapi-x11=enabled
+      - -Dvdpau=disabled
+      - -Dvdpau-gl-x11=disabled
+      - -Dvulkan=enabled
+      - -Dwayland=enabled
+      - -Degl=enabled
+      - -Dgl=enabled
+      - -Dplain-gl=enabled
+      - -Dpipewire=enabled
+      - -Dpulse=enabled
+      - -Dalsa=enabled
+      - -Dlibavdevice=enabled
+      - -Dlibarchive=enabled
+      - -Dlcms2=enabled
+      - -Djpeg=enabled
+      - -Dzlib=enabled
+      - -Dwerror=false
+    cleanup:
+      - /share
+    sources:
+      - type: git
+        url: https://github.com/mpv-player/mpv.git
+        tag: v0.41.0
+        commit: 41f6a645068483470267271e1d09966ca3b9f413
+
+  - name: piliplus
+    buildsystem: simple
+    build-commands:
+      - install -d /app/bin /app/PiliPlus /app/share/applications /app/share/metainfo /app/share/icons/hicolor/512x512/apps
+      - install -Dm755 piliplus /app/PiliPlus/piliplus
+      - cp -a data lib /app/PiliPlus/
+      - install -Dm755 piliplus-wrapper /app/bin/piliplus
+      - install -Dm644 com.example.piliplus.desktop /app/share/applications/com.example.piliplus.desktop
+      - install -Dm644 com.example.piliplus.metainfo.xml /app/share/metainfo/com.example.piliplus.metainfo.xml
+      - install -Dm644 logo.png /app/share/icons/hicolor/512x512/apps/com.example.piliplus.png
+    sources:
+      - type: archive
+        url: @PILIPLUS_TARBALL_URL@
+        sha256: @PILIPLUS_TARBALL_SHA256@
+      - type: file
+        path: flatpak/piliplus-wrapper
+      - type: file
+        path: flatpak/com.example.piliplus.desktop
+      - type: file
+        path: build/generated/com.example.piliplus.metainfo.xml
+      - type: file
+        path: assets/logo.png

@@ -1,0 +1,8 @@
+.flatpak-builder/
+.flatpak-build-dir/
+.flatpak-repo/
+build/downloads/
+build/generated/
+dist/
+*.flatpak
+/com.example.piliplus.yml

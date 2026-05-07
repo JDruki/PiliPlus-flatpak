@@ -1,0 +1,62 @@
+name: Build Flatpak Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Upstream PiliPlus release tag
+        required: true
+        default: 2.0.7
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out packaging repo
+        uses: actions/checkout@v4
+
+      - name: Install Flatpak tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder appstream desktop-file-utils
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y flathub org.gnome.Platform//49 org.gnome.Sdk//49
+
+      - name: Build bundle
+        run: ./scripts/build-flatpak.sh "${{ inputs.tag }}"
+
+      - name: Read release metadata
+        id: meta
+        run: |
+          . build/generated/release.env
+          echo "bundle=$BUNDLE_NAME" >> "$GITHUB_OUTPUT"
+          echo "version=$PILIPLUS_VERSION" >> "$GITHUB_OUTPUT"
+          echo "asset=$PILIPLUS_ASSET_NAME" >> "$GITHUB_OUTPUT"
+          echo "sha256=$PILIPLUS_ASSET_SHA256" >> "$GITHUB_OUTPUT"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.meta.outputs.bundle }}
+          path: |
+            dist/${{ steps.meta.outputs.bundle }}
+            dist/${{ steps.meta.outputs.bundle }}.sha256
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: piliplus-${{ inputs.tag }}
+          name: PiliPlus ${{ inputs.tag }} Flatpak
+          files: |
+            dist/${{ steps.meta.outputs.bundle }}
+            dist/${{ steps.meta.outputs.bundle }}.sha256
+          body: |
+            Flatpak bundle built from upstream PiliPlus release `${{ inputs.tag }}`.
+
+            Upstream release: https://github.com/bggRGjQaUbCoE/PiliPlus/releases/tag/${{ inputs.tag }}
+            Upstream Linux asset: `${{ steps.meta.outputs.asset }}`
+            Upstream asset SHA256: `${{ steps.meta.outputs.sha256 }}`
