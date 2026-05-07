@@ -113,6 +113,7 @@ modules:
   - name: libass
     buildsystem: meson
     config-opts:
+      - --libdir=lib
       - -Ddefault_library=shared
       - -Dtest=disabled
       - -Dcompare=disabled
@@ -128,6 +129,7 @@ modules:
   - name: libplacebo
     buildsystem: meson
     config-opts:
+      - --libdir=lib
       - -Ddefault_library=shared
       - -Ddemos=false
       - -Dtests=false
@@ -158,6 +160,7 @@ modules:
   - name: mpv
     buildsystem: meson
     config-opts:
+      - --libdir=lib
       - -Dcplayer=false
       - -Dlibmpv=true
       - -Dbuild-date=false
