@@ -17,6 +17,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: piliplus-flatpak-release
@@ -64,6 +66,9 @@ jobs:
     needs: resolve
     if: needs.resolve.outputs.should_build == 'true'
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Check out packaging repo
@@ -76,10 +81,39 @@ jobs:
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
           flatpak install --user -y flathub org.gnome.Platform//49 org.gnome.Sdk//49
 
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Prepare Flatpak signing key
+        env:
+          FLATPAK_GPG_PRIVATE_KEY: ${{ secrets.FLATPAK_GPG_PRIVATE_KEY }}
+          FLATPAK_GPG_KEY_ID_VAR: ${{ vars.FLATPAK_GPG_KEY_ID }}
+          FLATPAK_GPG_KEY_ID_SECRET: ${{ secrets.FLATPAK_GPG_KEY_ID }}
+        run: |
+          FLATPAK_GPG_KEY_ID="${FLATPAK_GPG_KEY_ID_VAR:-$FLATPAK_GPG_KEY_ID_SECRET}"
+          echo "FLATPAK_GPG_KEY_ID=$FLATPAK_GPG_KEY_ID" >> "$GITHUB_ENV"
+          echo "FLATPAK_GPG_HOMEDIR=$RUNNER_TEMP/gnupg" >> "$GITHUB_ENV"
+          if [[ -z "$FLATPAK_GPG_PRIVATE_KEY" || -z "$FLATPAK_GPG_KEY_ID" ]]; then
+            echo "Flatpak GPG signing is not configured; publishing an unsigned repository."
+            exit 0
+          fi
+          install -d -m 700 "$RUNNER_TEMP/gnupg"
+          export GNUPGHOME="$RUNNER_TEMP/gnupg"
+          printf '%s' "$FLATPAK_GPG_PRIVATE_KEY" | gpg --batch --import
+          gpg --batch --export "$FLATPAK_GPG_KEY_ID" > "$RUNNER_TEMP/flatpak-public.gpg"
+
       - name: Build bundle
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: ./scripts/build-flatpak.sh "${{ needs.resolve.outputs.tag }}"
+          FLATPAK_BASE_URL: ${{ steps.pages.outputs.base_url }}
+          FLATPAK_REPO_URL: ${{ steps.pages.outputs.base_url }}/repo
+          FLATPAK_GPG_PUBLIC_KEY: ${{ runner.temp }}/flatpak-public.gpg
+        run: |
+          if [[ ! -s "$FLATPAK_GPG_PUBLIC_KEY" ]]; then
+            unset FLATPAK_GPG_KEY_ID FLATPAK_GPG_PUBLIC_KEY
+          fi
+          ./scripts/build-flatpak.sh "${{ needs.resolve.outputs.tag }}"
 
       - name: Read release metadata
         id: meta
@@ -98,6 +132,15 @@ jobs:
             dist/${{ steps.meta.outputs.bundle }}
             dist/${{ steps.meta.outputs.bundle }}.sha256
 
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/pages
+
+      - name: Deploy Flatpak repository to Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -110,6 +153,9 @@ jobs:
             dist/${{ steps.meta.outputs.bundle }}.sha256
           body: |
             Flatpak bundle built from upstream PiliPlus release `${{ needs.resolve.outputs.tag }}`.
+
+            Flatpak repository: ${{ steps.pages.outputs.base_url }}/piliplus.flatpakrepo
+            Direct install ref: ${{ steps.pages.outputs.base_url }}/com.example.piliplus.flatpakref
 
             Upstream release: https://github.com/bggRGjQaUbCoE/PiliPlus/releases/tag/${{ needs.resolve.outputs.tag }}
             Upstream Linux asset: `${{ steps.meta.outputs.asset }}`
